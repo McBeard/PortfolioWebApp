@@ -3,8 +3,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 const STORAGE_KEY = "andy-crypto-v1";
 const CHAT_KEY = "andy-crypto-chat-v1";
 
-// Binance public market data endpoint - no API key needed, CORS-enabled
-const BINANCE_API = "/api/binance";
+// CoinGecko API via Netlify proxy - US-friendly, supports HYPE, BTCH etc
+const COINGECKO_API = "/api/coingecko";
 
 const DEFAULT_POSITIONS = [
   { id: 1, symbol: "BTCUSDT", ticker: "BTC", name: "Bitcoin", amount: 0, cost: 0, wallet: "Ledger" },
@@ -12,14 +12,14 @@ const DEFAULT_POSITIONS = [
   { id: 3, symbol: "SOLUSDT", ticker: "SOL", name: "Solana", amount: 0, cost: 0, wallet: "Coinbase" },
 ];
 
-// Binance trading pair symbols
-const BINANCE_SYMBOLS = {
-  "BTC": "BTCUSDT", "ETH": "ETHUSDT", "SOL": "SOLUSDT", "ADA": "ADAUSDT",
-  "XRP": "XRPUSDT", "DOGE": "DOGEUSDT", "DOT": "DOTUSDT", "AVAX": "AVAXUSDT",
-  "LINK": "LINKUSDT", "UNI": "UNIUSDT", "LTC": "LTCUSDT", "XLM": "XLMUSDT",
-  "SHIB": "SHIBUSDT", "PEPE": "PEPEUSDT", "SUI": "SUIUSDT", "APT": "APTUSDT",
-  "NEAR": "NEARUSDT", "MATIC": "MATICUSDT", "ATOM": "ATOMUSDT", "SAND": "SANDUSDT",
-  "HYPE": "HYPEUSDT", "BTCH": "BTCHUSDT",
+// CoinGecko coin IDs (coingecko.com/en/coins/{id})
+const COINGECKO_IDS = {
+  "BTC": "bitcoin", "ETH": "ethereum", "SOL": "solana", "ADA": "cardano",
+  "XRP": "ripple", "DOGE": "dogecoin", "DOT": "polkadot", "AVAX": "avalanche-2",
+  "LINK": "chainlink", "UNI": "uniswap", "LTC": "litecoin", "XLM": "stellar",
+  "SHIB": "shiba-inu", "PEPE": "pepe", "SUI": "sui", "APT": "aptos",
+  "NEAR": "near", "MATIC": "matic-network", "ATOM": "cosmos", "SAND": "the-sandbox",
+  "HYPE": "hyperliquid", "BTCH": "bitcoin-hyper",
 };
 
 function fmt(n, d = 2) { return n?.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }) ?? "—"; }
@@ -61,22 +61,17 @@ export default function CryptoTracker() {
     const pos = overridePos || positions;
     setRefreshing(true); setPriceError(false);
     try {
-      const symbols = [...new Set(pos.map(p => BINANCE_SYMBOLS[p.ticker] || p.symbol).filter(Boolean))];
-      // Binance ticker/24hr endpoint supports multiple symbols
-      const symbolsParam = JSON.stringify(symbols);
-      const res = await fetch(`${BINANCE_API}/ticker/24hr?symbols=${encodeURIComponent(symbolsParam)}`);
+      const ids = [...new Set(pos.map(p => COINGECKO_IDS[p.ticker] || p.symbol).filter(Boolean))];
+      const res = await fetch(`${COINGECKO_API}/simple/price?ids=${ids.join(",")}&vs_currencies=usd&include_24hr_change=true`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const p = {}, c = {};
-      data.forEach(d => {
-        const price = parseFloat(d.lastPrice);
-        const change = parseFloat(d.priceChangePercent);
-        p[d.symbol] = price;
-        c[d.symbol] = change;
-        // Also map by short ticker
-        const ticker = d.symbol.replace("USDT", "");
-        p[ticker] = price;
-        c[ticker] = change;
+      pos.forEach(position => {
+        const id = COINGECKO_IDS[position.ticker] || position.symbol;
+        if (data[id]) {
+          p[position.ticker] = data[id].usd;
+          c[position.ticker] = data[id].usd_24h_change;
+        }
       });
       if (Object.keys(p).length > 0) { setPrices(p); setChanges24h(c); setLastUpdated(new Date()); }
       else setPriceError(true);
@@ -92,12 +87,10 @@ export default function CryptoTracker() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat]);
 
   function getPrice(p) {
-    const sym = BINANCE_SYMBOLS[p.ticker] || p.symbol;
-    return prices[sym] || prices[p.ticker] || 0;
+    return prices[p.ticker] || 0;
   }
   function getChange(p) {
-    const sym = BINANCE_SYMBOLS[p.ticker] || p.symbol;
-    return changes24h[sym] || changes24h[p.ticker] || 0;
+    return changes24h[p.ticker] || 0;
   }
 
   const enriched = positions.map(p => {
@@ -142,7 +135,7 @@ export default function CryptoTracker() {
   function addPosition() {
     if (!newPos.ticker) return;
     const ticker = newPos.ticker.toUpperCase();
-    const symbol = newPos.symbol || BINANCE_SYMBOLS[ticker] || ticker + "USDT";
+    const symbol = newPos.symbol || COINGECKO_IDS[ticker] || ticker.toLowerCase();
     const pos = { id: nextId.current++, symbol, ticker, name: newPos.name || ticker, amount: parseFloat(newPos.amount) || 0, cost: parseFloat(newPos.cost) || 0, wallet: newPos.wallet };
     const updated = [...positions, pos];
     setPositions(updated); save(updated);
@@ -259,7 +252,7 @@ export default function CryptoTracker() {
                   {[["Ticker", "ticker", 70, "BTC"], ["Name", "name", 120, "Bitcoin"], ["Binance Pair", "symbol", 110, "BTCUSDT"], ["Amount", "amount", 90, "0.5"], ["Cost ($)", "cost", 90, "0"]].map(([label, key, w, ph]) => (
                     <div key={key}>
                       <div style={{ fontSize: 11, color: "#5a4a8a", marginBottom: 4 }}>{label}</div>
-                      <input value={newPos[key]} onChange={e => { const val = key === "ticker" ? e.target.value.toUpperCase() : e.target.value; const auto = key === "ticker" ? (BINANCE_SYMBOLS[val] || "") : undefined; setNewPos({ ...newPos, [key]: val, ...(auto !== undefined ? { symbol: auto } : {}) }); }} style={{ ...iStyle, width: w }} placeholder={ph} />
+                      <input value={newPos[key]} onChange={e => { const val = key === "ticker" ? e.target.value.toUpperCase() : e.target.value; const auto = key === "ticker" ? (COINGECKO_IDS[val] || "") : undefined; setNewPos({ ...newPos, [key]: val, ...(auto !== undefined ? { symbol: auto } : {}) }); }} style={{ ...iStyle, width: w }} placeholder={ph} />
                     </div>
                   ))}
                   <div>
