@@ -1,0 +1,6 @@
+[[redirects]]
+  from = "/api/binance/*"
+  to = "https://api.binance.com/api/v3/:splat"
+  status = 200
+  force = true
+  headers = {Access-Control-Allow-Origin = "*"}
