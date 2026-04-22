@@ -5,7 +5,7 @@ const CHAT_KEY = "andy-stocks-chat-v1";
 
 // Finnhub free API - works from browser, no CORS issues
 // Get free key at finnhub.io - replace below
-const FINNHUB_KEY = "YOUR_FINNHUB_KEY";
+const FINNHUB_KEY = "d7kj2ipr01qiqbcujulgd7kj2ipr01qiqbcujum0";
 
 const INITIAL_POSITIONS = [
   { ticker: "INTC", name: "Intel Corp", shares: 11, cost: 199.96 },
@@ -54,7 +54,7 @@ export default function StockTracker() {
   function saveChat(msgs) { localStorage.setItem(CHAT_KEY, JSON.stringify(msgs.slice(-40))); }
 
   async function fetchPrices() {
-    if (FINNHUB_KEY === "YOUR_FINNHUB_KEY") {
+    if (FINNHUB_KEY === "YOUR_FINNHUB_KEY_HERE") {
       setPriceError(true);
       return;
     }
@@ -149,7 +149,7 @@ export default function StockTracker() {
           </button>
           {priceError && (
             <span style={{ fontSize: 11, color: "#f87171" }}>
-              {FINNHUB_KEY === "YOUR_FINNHUB_KEY" ? "⚠ Add Finnhub API key in .env file" : "⚠ Price fetch failed"}
+              {FINNHUB_KEY === "YOUR_FINNHUB_KEY_HERE" ? "⚠ Add Finnhub API key in .env file" : "⚠ Price fetch failed"}
             </span>
           )}
         </div>

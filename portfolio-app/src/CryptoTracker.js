@@ -4,7 +4,7 @@ const STORAGE_KEY = "andy-crypto-v1";
 const CHAT_KEY = "andy-crypto-chat-v1";
 
 // Binance public market data endpoint - no API key needed, CORS-enabled
-const BINANCE_API = "https://api.binance.com/api/v3";
+const BINANCE_API = "/api/binance";
 
 const DEFAULT_POSITIONS = [
   { id: 1, symbol: "BTCUSDT", ticker: "BTC", name: "Bitcoin", amount: 0, cost: 0, wallet: "Ledger" },
